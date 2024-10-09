@@ -4,7 +4,7 @@ import random
 
 nlp = spacy.load("en_core_web_sm")
 pygame.init()
-pygame.mixer.init()  # Initialize the mixer for sounds
+pygame.mixer.init()
 
 move_sound = pygame.mixer.Sound('move.wav')
 jump_sound = pygame.mixer.Sound('jump.wav')
@@ -17,13 +17,13 @@ pygame.display.set_caption("MoveIt!")
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 165, 0)]  # Red, Green, Blue, Yellow, Orange
+colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 165, 0)]
 current_color = colors[0]
 
 # Character settings
-char_x, char_y = screen_width // 2, screen_height - 100  # Move circle near the bottom
+char_x, char_y = screen_width // 2, screen_height - 100
 char_size = 50
-jump_height = 150  # Increase jump height
+jump_height = 150
 gravity = 5
 is_jumping = False
 jump_count = 10
