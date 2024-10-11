@@ -1,0 +1,24 @@
+In developing "MoveIt!", I initially tried using spaCy’s word vector similarities to detect
+commands. The idea was to match user inputs like "move" and "jump" by calculating the similarity
+between the input and predefined actions. However, this approach quickly ran into a problem:
+words like "move" and "jump" had the same similarity score (1.0), which caused confusion. For
+instance, the game would often interpret "jump" as "move" because of these equal scores, leading to
+the wrong action being triggered.
+
+I tried addressing this by prioritizing commands based on direction—e.g., treating "up" as "jump"
+and "left" or "right" as "move." While this partially fixed the issue, it felt like a patch rather than a
+clean solution.
+
+That’s when I decided to switch to spaCy’s Matcher.
+The Matcher allowed me to define clear patterns like "move left," "jump," or "change color." This
+eliminated the ambiguity of similarity scores and made it much easier to map user inputs to specific
+actions. Now, instead of relying on numerical scores, the system simply matches the input to the
+pattern and performs the appropriate action.
+
+This approach works well, but it does limit the capabilities of the tool. I could add synonym
+detection to make the game more flexible in recognizing commands like "shift" for "move."
+Additionally, I could expand the patterns to cover more natural language variations or even handle
+multiple actions in one command.
+
+Ultimately, using the Matcher made the system far more reliable, and it streamlined the process of
+recognizing and executing commands.
