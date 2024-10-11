@@ -1,6 +1,7 @@
 # MoveIt!
 
-MoveIt! is a simple text-based command game where players type commands to control a circle on the screen. The player can move the circle left, right, make it jump, or change its color. It's designed for kids or beginners to enjoy learning basic text commands.
+MoveIt! is a simple text-based command game where players type commands to control a circle on the screen. The player can move the circle left, right, make it jump, or change its color.
+The game integrates Python, Pygame for the interface, and spaCy for interpreting natural language input.
 
 ## Features
 

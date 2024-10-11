@@ -1,131 +1,166 @@
 import pygame
 import spacy
+from spacy.matcher import Matcher
 import random
 
-nlp = spacy.load("en_core_web_sm")
+nlp = spacy.load("en_core_web_md")
 pygame.init()
-pygame.mixer.init()
 
-move_sound = pygame.mixer.Sound('move.wav')
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
 jump_sound = pygame.mixer.Sound('jump.wav')
+move_sound = pygame.mixer.Sound('move.wav')
 color_change_sound = pygame.mixer.Sound('color_change.wav')
-exit_sound = pygame.mixer.Sound('exit.wav')
-
-screen_width, screen_height = 800, 600
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("MoveIt!")
 
 WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 165, 0)]
-current_color = colors[0]
+circle_color = (0, 0, 255)
+circle_radius = 30
+circle_x = SCREEN_WIDTH // 2
+circle_y = SCREEN_HEIGHT - circle_radius - 50
+original_y = circle_y
 
-# Character settings
-char_x, char_y = screen_width // 2, screen_height - 100
-char_size = 50
-jump_height = 150
-gravity = 5
-is_jumping = False
-jump_count = 10
+jumping = False
+falling = False
+jump_speed = 10
+fall_speed = 10
+max_jump_height = 120
 
-# FPS settings
+FPS = 60
 clock = pygame.time.Clock()
 
-available_commands = ["move left", "move right", "jump", "change color", "exit"]
+font = pygame.font.Font(None, 36)
+small_font = pygame.font.Font(None, 28)
+
+instructions = "Type a command and press Enter"
+commands = "(move left/right, jump, change color, exit)"
+
+matcher = Matcher(nlp.vocab)
+patterns = [
+    [{"LEMMA": "move"}, {"LOWER": {"IN": ["left", "right"]}}],
+    [{"LEMMA": "jump"}],
+    [{"LEMMA": "change"}, {"LOWER": "color"}],
+    [{"LEMMA": "exit"}],
+]
+matcher.add("COMMANDS", patterns)
+
+error_message = ""
+stored_action = None
+input_message = ""
+
+
+def display_text(text, y_position, color=(0, 0, 0), small=False):
+    """Display text on the screen."""
+    font_to_use = small_font if small else font
+    rendered_text = font_to_use.render(text, True, color)
+    text_rect = rendered_text.get_rect(center=(SCREEN_WIDTH // 2, y_position))
+    screen.blit(rendered_text, text_rect)
+
+
+def perform_jump():
+    global jumping, falling, circle_y
+    if jumping:
+        if circle_y > max_jump_height:
+            circle_y -= jump_speed
+        else:
+            jumping = False
+            falling = True
+    elif falling:
+        if circle_y < original_y:
+            circle_y += fall_speed
+        else:
+            falling = False
+
+
+def handle_action(action, direction=None):
+    global circle_x, circle_color, jumping, error_message
+
+    if action == "move":
+        if direction == "left":
+            circle_x -= 20
+            move_sound.play()
+        elif direction == "right":
+            circle_x += 20
+            move_sound.play()
+    elif action == "jump":
+        if not jumping and not falling:
+            jumping = True
+            jump_sound.play()
+            error_message = ""
+    elif action == "color":
+        circle_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        color_change_sound.play()
+        error_message = ""
+    elif action == "exit":
+        pygame.quit()
+        quit()
+
 
 def process_command(command):
-    global char_x, char_y, current_color, is_jumping, running
-
+    global stored_action, error_message
     doc = nlp(command.lower())
+    matches = matcher(doc)
+    action = None
+    direction = None
+
     for token in doc:
-        if token.text in ["left", "right", "jump", "color", "exit"]:
-            if token.text == "left":
-                char_x -= 50
-                move_sound.play()
-            elif token.text == "right":
-                char_x += 50
-                move_sound.play()
-            elif token.text == "jump" and not is_jumping:
-                is_jumping = True
-                jump_sound.play()
-            elif token.text == "color":
-                current_color = random.choice(colors)
-                color_change_sound.play()
-            elif token.text == "exit":
-                exit_sound.play()
-                pygame.time.wait(300)
-                running = False
+        if token.text in ["left", "right"]:
+            direction = token.text
 
-def display_available_commands():
-    font = pygame.font.Font(None, 24)
-    commands_text = "Commands: " + ", ".join(available_commands)
-    text = font.render(f"({commands_text})", True, BLACK)
-    text_rect = text.get_rect(center=(screen_width // 2, 100))
-    screen.blit(text, text_rect)
+    for match_id, start, end in matches:
+        span = doc[start:end]
+        if span.text == "move left" or span.text == "move right":
+            action = "move"
+            direction = span[-1].text
+            break
+        elif span.text == "jump":
+            action = "jump"
+            break
+        elif span.text == "change color":
+            action = "color"
+            break
+        elif span.text == "exit":
+            action = "exit"
+            break
 
-def display_prompt():
-    font = pygame.font.Font(None, 36)
-    prompt_text = "Type a command and press Enter:"
-    text = font.render(prompt_text, True, BLACK)
-    text_rect = text.get_rect(center=(screen_width // 2, 50))
-    screen.blit(text, text_rect)
+    if not action:
+        error_message = "Unrecognized action. Try typing 'move left/right', 'jump', or 'change color'."
+    else:
+        handle_action(action, direction)
+        stored_action = None
 
-# Main
-def game_loop():
-    global char_x, char_y, is_jumping, jump_count, running
-    running = True
-    input_command = ""
-    cursor_visible = True
-    cursor_counter = 0
+# Main game loop
+running = True
+while running:
+    screen.fill(WHITE)
+    pygame.draw.circle(screen, circle_color, (circle_x, int(circle_y)), circle_radius)
+    display_text(instructions, 50)
+    display_text(commands, 80, small=True)
+    display_text(input_message, 120, color=(100, 100, 100))
 
-    while running:
-        screen.fill(WHITE)
+    if error_message:
+        display_text(error_message, 500, color=(255, 0, 0))
 
-        pygame.draw.circle(screen, current_color, (char_x, char_y), char_size)
-        display_prompt()
-        display_available_commands()
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    process_command(input_command)
-                    input_command = ""
-                elif event.key == pygame.K_BACKSPACE:
-                    input_command = input_command[:-1]
-                else:
-                    input_command += event.unicode
-
-        if is_jumping:
-            if jump_count >= -10:
-                neg = 1
-                if jump_count < 0:
-                    neg = -1
-                char_y -= (jump_count ** 2) * 0.5 * neg
-                jump_count -= 1
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                if input_message.strip():
+                    process_command(input_message.strip())
+                    input_message = ''
+                error_message = ''
+            elif event.key == pygame.K_BACKSPACE:
+                input_message = input_message[:-1]
             else:
-                jump_count = 10
-                is_jumping = False
+                input_message += event.unicode
 
-        font = pygame.font.Font(None, 36)
-        text = font.render(input_command, True, BLACK)
-        text_rect = text.get_rect(center=(screen_width // 2, 150))
-        screen.blit(text, text_rect)
+    if jumping or falling:
+        perform_jump()
 
-        cursor_counter += 1
-        if cursor_counter % 60 < 30:
-            cursor_visible = True
-        else:
-            cursor_visible = False
+    pygame.display.flip()
+    clock.tick(FPS)
 
-        if cursor_visible:
-            cursor = font.render("|", True, BLACK)
-            screen.blit(cursor, (text_rect.right + 5, text_rect.top))
-
-        pygame.display.flip()
-        clock.tick(30)
-
-game_loop()
 pygame.quit()
